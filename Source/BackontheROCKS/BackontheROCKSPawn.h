@@ -103,6 +103,11 @@ protected:
 
 	double LastAttackTime = -1000.0;
 
+	UPROPERTY(
+		VisibleAnywhere,
+		BlueprintReadOnly,
+		Category = "Attack"
+	)
 	TObjectPtr<USceneComponent> AttackTraceOrigin;
 
 	UPROPERTY(

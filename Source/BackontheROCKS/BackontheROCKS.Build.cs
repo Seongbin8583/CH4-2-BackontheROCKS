@@ -1,13 +1,31 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
-
-using UnrealBuildTool;
+﻿using UnrealBuildTool;
 
 public class BackontheROCKS : ModuleRules
 {
-	public BackontheROCKS(ReadOnlyTargetRules Target) : base(Target)
-	{
-		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+    public BackontheROCKS(ReadOnlyTargetRules Target) : base(Target)
+    {
+        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "ChaosVehicles", "PhysicsCore", "UMG" });
-	}
+        PublicDependencyModuleNames.AddRange(
+            new string[]
+            {
+                "Core",
+                "CoreUObject",
+                "Engine",
+                "InputCore",
+                "EnhancedInput",
+                "ChaosVehicles",
+                "PhysicsCore",
+                "UMG",
+                "SlateCore"
+            }
+        );
+
+        PrivateDependencyModuleNames.AddRange(
+            new string[]
+            {
+                "Slate"
+            }
+        );
+    }
 }

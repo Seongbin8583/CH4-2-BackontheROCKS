@@ -1,4 +1,5 @@
-﻿#include "Kismet/GameplayStatics.h"
+﻿#include "BackontheROCKSPawn.h"
+#include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
 #include "BOTRPlayerState.h"
 #include "BOTRGameStateBase.h"
@@ -6,7 +7,6 @@
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/DamageType.h"
-#include "BackontheROCKSPawn.h"
 #include "BackontheROCKSWheelFront.h"
 #include "BackontheROCKSWheelRear.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -67,6 +67,13 @@ ABackontheROCKSPawn::ABackontheROCKSPawn()
 		RootComponent
 	);
 
+	bReplicates = true;
+	SetReplicateMovement(true);
+	SetCanBeDamaged(true);
+
+	AttackTraceOrigin->SetRelativeLocation(
+		FVector(250.0f, 0.0f, 60.0f)
+	);
 }
 
 void ABackontheROCKSPawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -407,14 +414,6 @@ float ABackontheROCKSPawn::TakeDamage(
 	);
 }
 
-bReplicates = true;
-SetReplicateMovement(true);
-SetCanBeDamaged(true);
-
-// 기본값입니다. 실제 범퍼 위치는 차량 BP에서 조정합니다.
-AttackTraceOrigin->SetRelativeLocation(
-	FVector(250.0f, 0.0f, 60.0f)
-);
 void ABackontheROCKSPawn::ApplySpeedLimit()
 {
 	// 다른 차량의 표시용 복제본에서는 속도를 수정하지 않습니다.

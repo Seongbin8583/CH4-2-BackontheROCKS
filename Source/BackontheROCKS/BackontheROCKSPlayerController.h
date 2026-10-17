@@ -7,7 +7,6 @@
 class UInputMappingContext;
 class UBackontheROCKSUI;
 class UChatWidget;
-class UGameHUDWidget;
 
 UCLASS(abstract)
 class BACKONTHEROCKS_API ABackontheROCKSPlayerController
@@ -48,17 +47,11 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "UI")
     TSubclassOf<UChatWidget> ChatWidgetClass;
 
-    UPROPERTY(EditDefaultsOnly, Category = "UI")
-    TSubclassOf<UGameHUDWidget> GameHUDWidgetClass;
-
     UPROPERTY()
     TObjectPtr<UBackontheROCKSUI> VehicleUI;
 
     UPROPERTY()
     TObjectPtr<UChatWidget> ChatWidget;
-
-    UPROPERTY()
-    TObjectPtr<UGameHUDWidget> GameHUDWidget;
 
 private:
     void OpenChat();

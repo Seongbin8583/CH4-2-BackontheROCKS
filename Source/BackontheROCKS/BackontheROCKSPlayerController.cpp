@@ -3,7 +3,6 @@
 #include "BackontheROCKSPawn.h"
 #include "BackontheROCKSUI.h"
 #include "chatUI.h"
-#include "GameHUDWidget.h"
 
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -32,20 +31,6 @@ void ABackontheROCKSPlayerController::BeginPlay()
         if (VehicleUI)
         {
             VehicleUI->AddToViewport(0);
-        }
-    }
-
-    if (GameHUDWidgetClass)
-    {
-        GameHUDWidget =
-            CreateWidget<UGameHUDWidget>(
-                this,
-                GameHUDWidgetClass
-            );
-
-        if (GameHUDWidget)
-        {
-            GameHUDWidget->AddToViewport(1);
         }
     }
 
