@@ -6,6 +6,7 @@
 #include "WheeledVehiclePawn.h"
 #include "BackontheROCKSPawn.generated.h"
 
+
 class UCameraComponent;
 class USpringArmComponent;
 class UInputAction;
@@ -97,11 +98,11 @@ protected:
 	)
 	float AttackRange = 300.0f;
 
-	UPROPERTY(
-		VisibleAnywhere,
-		BlueprintReadOnly,
-		Category = "Attack"
-	)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
+	float AttackCooldown = 0.3f;
+
+	double LastAttackTime = -1000.0;
+
 	TObjectPtr<USceneComponent> AttackTraceOrigin;
 
 	UPROPERTY(
@@ -178,6 +179,15 @@ protected:
 	/** Called when the brake lights are turned on or off */
 	UFUNCTION(BlueprintImplementableEvent, Category="Vehicle")
 	void BrakeLights(bool bBraking);
+
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category = "Vehicle|Speed"
+	)
+	float BaseMaxSpeedKmh = 120.0f;
+
+	void ApplySpeedLimit();
 
 public:
 	/** Returns the front spring arm subobject */

@@ -9,8 +9,6 @@
 
 ABackontheROCKSGameMode::ABackontheROCKSGameMode()
 {
-	PlayerControllerClass = ABackontheROCKSPlayerController::StaticClass();
-
 	GameStateClass =
 		ABOTRGameStateBase::StaticClass();
 

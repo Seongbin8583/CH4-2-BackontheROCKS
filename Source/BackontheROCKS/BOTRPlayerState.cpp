@@ -7,15 +7,23 @@ ABOTRPlayerState::ABOTRPlayerState()
     BonusMaxSpeed = 0.0f;
 }
 
-void ABOTRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+void ABOTRPlayerState::GetLifetimeReplicatedProps(
+    TArray<FLifetimeProperty>& OutLifetimeProps
+) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-    DOREPLIFETIME_CONDITION
-    (AAssignmentPlayerState, Coins, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(
+        ABOTRPlayerState,
+        Coins,
+        COND_OwnerOnly
+    );
 
-    DOREPLIFETIME_CONDITION
-    (AAssignmentPlayerState, BonusMaxSpeed, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(
+        ABOTRPlayerState,
+        BonusMaxSpeed,
+        COND_OwnerOnly
+    );
 }
 
 void ABOTRPlayerState::AddCoins(int32 Amount)

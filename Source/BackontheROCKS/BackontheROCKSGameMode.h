@@ -18,6 +18,10 @@ public:
         APlayerController* NewPlayer
     ) override;
 
+    virtual AActor* ChoosePlayerStart_Implementation(
+        AController* Player
+    ) override;
+
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "Game")
     int32 WaitingDuration = 10;
@@ -28,6 +32,18 @@ protected:
     FTimerHandle GameTimerHandle;
 
     bool bCountdownStarted = false;
+
+    bool IsPlayerStartAvailable(
+        const class APlayerStart* PlayerStart
+    ) const;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Spawn")
+    FVector VehicleSpawnCheckOffset =
+        FVector(0.0f, 0.0f, 100.0f);
+
+    UPROPERTY(EditDefaultsOnly, Category = "Spawn")
+    FVector VehicleSpawnCheckHalfExtent =
+        FVector(250.0f, 120.0f, 100.0f);
 
     void StartWaiting();
     void StartPlaying();

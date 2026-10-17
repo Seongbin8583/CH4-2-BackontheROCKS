@@ -1,141 +1,214 @@
-﻿#include "ChatWidget.h"
-#include "GameHUDWidget.h"
-#include "BackontheROCKSPlayerController.h"
+﻿#include "BackontheROCKSPlayerController.h"
+
 #include "BackontheROCKSPawn.h"
 #include "BackontheROCKSUI.h"
-#include "EnhancedInputSubsystems.h"
-#include "ChaosWheeledVehicleMovementComponent.h"
-#include "Net/UnrealNetwork.h"
+#include "chatUI.h"
+#include "GameHUDWidget.h"
 
+#include "ChaosWheeledVehicleMovementComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerState.h"
+#include "InputCoreTypes.h"
 
 void ABackontheROCKSPlayerController::BeginPlay()
 {
-	Super::BeginPlay();
-	
-	if (!IsLocalController())
-	{
-		return;
-	}
+    Super::BeginPlay();
 
-	if (ChatWidgetClass)
-	{
-		ChatWidget =
-			CreateWidget<UChatWidget>(
-				this,
-				ChatWidgetClass
-			);
+    if (!IsLocalController())
+    {
+        return;
+    }
 
-		if (ChatWidget)
-		{
-			ChatWidget->AddToViewport();
-		}
-	}
+    if (VehicleUIClass)
+    {
+        VehicleUI =
+            CreateWidget<UBackontheROCKSUI>(
+                this,
+                VehicleUIClass
+            );
 
-	if (GameHUDWidgetClass)
-	{
-		GameHUDWidget =
-			CreateWidget<UGameHUDWidget>(
-				this,
-				GameHUDWidgetClass
-			);
+        if (VehicleUI)
+        {
+            VehicleUI->AddToViewport(0);
+        }
+    }
 
-		if (GameHUDWidget)
-		{
-			GameHUDWidget->AddToViewport();
-		}
-	}
+    if (GameHUDWidgetClass)
+    {
+        GameHUDWidget =
+            CreateWidget<UGameHUDWidget>(
+                this,
+                GameHUDWidgetClass
+            );
+
+        if (GameHUDWidget)
+        {
+            GameHUDWidget->AddToViewport(1);
+        }
+    }
+
+    if (ChatWidgetClass)
+    {
+        ChatWidget =
+            CreateWidget<UChatWidget>(
+                this,
+                ChatWidgetClass
+            );
+
+        if (ChatWidget)
+        {
+            ChatWidget->AddToViewport(2);
+        }
+    }
+
+    SetInputMode(FInputModeGameOnly());
+    bShowMouseCursor = false;
 }
 
 void ABackontheROCKSPlayerController::SetupInputComponent()
 {
-	Super::SetupInputComponent();
-	
-	// get the enhanced input subsystem
-	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
-	{
-		// add the mapping context so we get controls
-		Subsystem->AddMappingContext(InputMappingContext, 0);
+    Super::SetupInputComponent();
 
-		// optionally add the steering wheel context
-		if (bUseSteeringWheelControls && SteeringWheelInputMappingContext)
-		{
-			Subsystem->AddMappingContext(SteeringWheelInputMappingContext, 1);
-		}
-	}
+    if (!IsLocalController())
+    {
+        return;
+    }
+
+    if (ULocalPlayer* LP = GetLocalPlayer())
+    {
+        if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
+            ULocalPlayer::GetSubsystem<
+            UEnhancedInputLocalPlayerSubsystem
+            >(LP))
+        {
+            if (InputMappingContext)
+            {
+                Subsystem->AddMappingContext(
+                    InputMappingContext,
+                    0
+                );
+            }
+
+            if (bUseSteeringWheelControls &&
+                SteeringWheelInputMappingContext)
+            {
+                Subsystem->AddMappingContext(
+                    SteeringWheelInputMappingContext,
+                    1
+                );
+            }
+        }
+    }
+
+    if (InputComponent)
+    {
+        InputComponent->BindKey(
+            EKeys::Enter,
+            IE_Pressed,
+            this,
+            &ABackontheROCKSPlayerController::OpenChat
+        );
+    }
 }
 
-void ABackontheROCKSPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+void ABackontheROCKSPlayerController::Tick(float DeltaSeconds)
 {
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    Super::Tick(DeltaSeconds);
 
-	DOREPLIFETIME(ThisClass, VehiclePawn);
+    if (!IsLocalController() || !VehicleUI)
+    {
+        return;
+    }
+
+    // 서버 OnPossess에서 저장한 포인터에 의존하지 않고,
+    // 로컬 컨트롤러의 현재 폰을 조회합니다.
+    const ABackontheROCKSPawn* Vehicle =
+        Cast<ABackontheROCKSPawn>(GetPawn());
+
+    if (!Vehicle)
+    {
+        return;
+    }
+
+    const UChaosWheeledVehicleMovementComponent* Movement =
+        Vehicle->GetChaosVehicleMovement();
+
+    if (Movement)
+    {
+        VehicleUI->UpdateSpeed(Movement->GetForwardSpeed());
+        VehicleUI->UpdateGear(Movement->GetCurrentGear());
+    }
 }
 
-void ABackontheROCKSPlayerController::Tick(float Delta)
+void ABackontheROCKSPlayerController::OpenChat()
 {
-	Super::Tick(Delta);
-
-	if (IsValid(VehiclePawn) && IsValid(VehicleUI))
-	{
-		VehicleUI->UpdateSpeed(VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed());
-		VehicleUI->UpdateGear(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
-	}
-}
-
-void ABackontheROCKSPlayerController::OnPossess(APawn* InPawn)
-{
-	Super::OnPossess(InPawn);
-
-	// get a pointer to the controlled pawn
-	VehiclePawn = CastChecked<ABackontheROCKSPawn>(InPawn);
+    if (ChatWidget)
+    {
+        ChatWidget->FocusChat();
+    }
 }
 
 void ABackontheROCKSPlayerController::ServerSendChat_Implementation(
-	const FString& Message
+    const FString& Message
 )
 {
-	FString SafeMessage =
-		Message.TrimStartAndEnd();
+    if (!PlayerState || !GetWorld())
+    {
+        return;
+    }
 
-	if (SafeMessage.IsEmpty())
-	{
-		return;
-	}
+    FString SafeMessage =
+        Message.Left(120).TrimStartAndEnd();
 
-	SafeMessage = SafeMessage.Left(120);
+    SafeMessage.ReplaceInline(TEXT("\r"), TEXT(" "));
+    SafeMessage.ReplaceInline(TEXT("\n"), TEXT(" "));
 
-	FString PlayerName = TEXT("Player");
+    if (SafeMessage.IsEmpty())
+    {
+        return;
+    }
 
-	if (PlayerState)
-	{
-		PlayerName =
-			PlayerState->GetPlayerName();
-	}
+    const double Now = GetWorld()->GetTimeSeconds();
 
-	const FString FinalMessage =
-		FString::Printf(
-			TEXT("%s: %s"),
-			*PlayerName,
-			*SafeMessage
-		);
+    // 서버에서 전송 간격 제한
+    if (Now - LastChatTime < 0.3)
+    {
+        return;
+    }
 
-	for (
-		FConstPlayerControllerIterator It =
-		GetWorld()->GetPlayerControllerIterator();
-		It;
-		++It
-		)
-	{
-		ABackontheROCKSPlayerController* PC =
-			Cast<ABackontheROCKSPlayerController>(
-				It->Get()
-			);
+    LastChatTime = Now;
 
-		if (PC)
-		{
-			PC->ClientReceiveChat(
-				FinalMessage
-			);
-		}
-	}
+    const FString FinalMessage = FString::Printf(
+        TEXT("%s: %s"),
+        *PlayerState->GetPlayerName(),
+        *SafeMessage
+    );
+
+    // 서버에는 접속한 모든 PlayerController가 있습니다.
+    // 각 컨트롤러의 소유 클라이언트로 메시지를 전송합니다.
+    for (
+        FConstPlayerControllerIterator It =
+        GetWorld()->GetPlayerControllerIterator();
+        It;
+        ++It
+        )
+    {
+        if (ABackontheROCKSPlayerController* PC =
+            Cast<ABackontheROCKSPlayerController>(It->Get()))
+        {
+            PC->ClientReceiveChat(FinalMessage);
+        }
+    }
+}
+
+void ABackontheROCKSPlayerController::ClientReceiveChat_Implementation(
+    const FString& Message
+)
+{
+    if (ChatWidget)
+    {
+        ChatWidget->AddChatMessage(Message);
+    }
 }

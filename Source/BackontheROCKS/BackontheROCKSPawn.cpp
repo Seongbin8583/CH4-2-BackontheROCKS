@@ -1,7 +1,11 @@
 ﻿#include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
 #include "BOTRPlayerState.h"
-
+#include "BOTRGameStateBase.h"
+#include "Components/SceneComponent.h"
+#include "Engine/World.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/DamageType.h"
 #include "BackontheROCKSPawn.h"
 #include "BackontheROCKSWheelFront.h"
 #include "BackontheROCKSWheelRear.h"
@@ -121,6 +125,7 @@ void ABackontheROCKSPawn::Tick(float Delta)
 	CameraYaw = FMath::FInterpTo(CameraYaw, 0.0f, Delta, 1.0f);
 
 	BackSpringArm->SetRelativeRotation(FRotator(0.0f, CameraYaw, 0.0f));
+	ApplySpeedLimit();
 }
 
 void ABackontheROCKSPawn::Steering(const FInputActionValue& Value)
@@ -230,27 +235,47 @@ void ABackontheROCKSPawn::Attack()
 	ServerAttack();
 }
 
-void ABackontheROCKSPawn::
-ServerAttack_Implementation()
+void ABackontheROCKSPawn::ServerAttack_Implementation()
 {
-	if (!AttackTraceOrigin)
+	if (!HasAuthority() ||
+		!AttackTraceOrigin ||
+		!GetController())
 	{
 		return;
 	}
+
+	const ABOTRGameStateBase* GS =
+		GetWorld()->GetGameState<ABOTRGameStateBase>();
+
+	if (!GS ||
+		GS->CurrentState != EBOTRGameStateBase::Playing)
+	{
+		return;
+	}
+
+	const double Now = GetWorld()->GetTimeSeconds();
+
+	if (Now - LastAttackTime < AttackCooldown)
+	{
+		return;
+	}
+
+	LastAttackTime = Now;
 
 	const FVector Start =
 		AttackTraceOrigin->GetComponentLocation();
 
 	const FVector End =
 		Start +
-		AttackTraceOrigin->GetForwardVector()
-		* AttackRange;
+		AttackTraceOrigin->GetForwardVector() * AttackRange;
+
+	FCollisionQueryParams Params(
+		SCENE_QUERY_STAT(BOTRAttack),
+		false,
+		this
+	);
 
 	FHitResult HitResult;
-
-	FCollisionQueryParams Params;
-
-	Params.AddIgnoredActor(this);
 
 	const bool bHit =
 		GetWorld()->LineTraceSingleByChannel(
@@ -261,22 +286,19 @@ ServerAttack_Implementation()
 			Params
 		);
 
-	bool bVehicleHit = false;
-
 	FVector TraceEnd = End;
+	bool bVehicleHit = false;
 
 	if (bHit)
 	{
-		TraceEnd =
-			HitResult.ImpactPoint;
+		TraceEnd = HitResult.ImpactPoint;
 
 		ABackontheROCKSPawn* HitVehicle =
 			Cast<ABackontheROCKSPawn>(
 				HitResult.GetActor()
 			);
 
-		if (HitVehicle &&
-			HitVehicle != this)
+		if (HitVehicle && HitVehicle != this)
 		{
 			bVehicleHit = true;
 
@@ -334,60 +356,116 @@ float ABackontheROCKSPawn::TakeDamage(
 	AActor* DamageCauser
 )
 {
-	const float ActualDamage =
-		Super::TakeDamage(
-			DamageAmount,
-			DamageEvent,
-			EventInstigator,
-			DamageCauser
-		);
-
-	if (!HasAuthority())
+	if (!HasAuthority() ||
+		DamageAmount <= 0.0f ||
+		!EventInstigator)
 	{
-		return ActualDamage;
+		return 0.0f;
 	}
 
-	if (!EventInstigator)
+	const ABOTRGameStateBase* GS =
+		GetWorld()->GetGameState<ABOTRGameStateBase>();
+
+	if (!GS ||
+		GS->CurrentState != EBOTRGameStateBase::Playing)
 	{
-		return ActualDamage;
+		return 0.0f;
 	}
 
-	AController* VictimController =
-		GetController();
+	AController* VictimController = GetController();
 
-	if (!VictimController)
+	if (!VictimController ||
+		VictimController == EventInstigator)
 	{
-		return ActualDamage;
-	}
-
-	if (VictimController == EventInstigator)
-	{
-		return ActualDamage;
+		return 0.0f;
 	}
 
 	ABOTRPlayerState* VictimPS =
-		VictimController->
-		GetPlayerState<ABOTRPlayerState>();
+		VictimController->GetPlayerState<ABOTRPlayerState>();
 
 	ABOTRPlayerState* AttackerPS =
-		EventInstigator->
-		GetPlayerState<ABOTRPlayerState>();
+		EventInstigator->GetPlayerState<ABOTRPlayerState>();
 
 	if (!VictimPS || !AttackerPS)
 	{
-		return ActualDamage;
+		return 0.0f;
 	}
 
-	if (VictimPS->GetCoins() < 5)
+	// 잔액이 5 미만이면 차감도 지급도 하지 않습니다.
+	if (!VictimPS->RemoveCoins(5))
 	{
-		return ActualDamage;
+		return 0.0f;
 	}
-
-	VictimPS->RemoveCoins(5);
 
 	AttackerPS->AddCoins(5);
 
-	return ActualDamage;
+	return Super::TakeDamage(
+		DamageAmount,
+		DamageEvent,
+		EventInstigator,
+		DamageCauser
+	);
 }
 
+bReplicates = true;
+SetReplicateMovement(true);
+SetCanBeDamaged(true);
+
+// 기본값입니다. 실제 범퍼 위치는 차량 BP에서 조정합니다.
+AttackTraceOrigin->SetRelativeLocation(
+	FVector(250.0f, 0.0f, 60.0f)
+);
+void ABackontheROCKSPawn::ApplySpeedLimit()
+{
+	// 다른 차량의 표시용 복제본에서는 속도를 수정하지 않습니다.
+	if (!HasAuthority() && !IsLocallyControlled())
+	{
+		return;
+	}
+
+	const ABOTRPlayerState* PS =
+		GetPlayerState<ABOTRPlayerState>();
+
+	if (!PS ||
+		!GetMesh() ||
+		!GetMesh()->IsSimulatingPhysics())
+	{
+		return;
+	}
+
+	const float MaxSpeedKmh =
+		FMath::Max(
+			0.0f,
+			BaseMaxSpeedKmh + PS->GetBonusMaxSpeed()
+		);
+
+	// km/h → cm/s
+	const float MaxSpeedCmPerSecond =
+		MaxSpeedKmh / 0.036f;
+
+	FVector Velocity =
+		GetMesh()->GetPhysicsLinearVelocity();
+
+	const FVector HorizontalVelocity(
+		Velocity.X,
+		Velocity.Y,
+		0.0f
+	);
+
+	const float HorizontalSpeed =
+		HorizontalVelocity.Size();
+
+	if (HorizontalSpeed > MaxSpeedCmPerSecond &&
+		HorizontalSpeed > KINDA_SMALL_NUMBER)
+	{
+		const float Scale =
+			MaxSpeedCmPerSecond / HorizontalSpeed;
+
+		Velocity.X *= Scale;
+		Velocity.Y *= Scale;
+
+		// 점프·낙하 속도 Z는 유지합니다.
+		GetMesh()->SetPhysicsLinearVelocity(Velocity);
+	}
+}
 #undef LOCTEXT_NAMESPACE
