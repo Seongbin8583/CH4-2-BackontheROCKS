@@ -6,6 +6,7 @@
 
 class UInputMappingContext;
 class UBackontheROCKSUI;
+class UGameHUDWidget;
 class UChatWidget;
 
 UCLASS(abstract)
@@ -52,6 +53,12 @@ protected:
 
     UPROPERTY()
     TObjectPtr<UChatWidget> ChatWidget;
+
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UGameHUDWidget> GameHUDWidgetClass;
+
+    UPROPERTY()
+    TObjectPtr<UGameHUDWidget> GameHUDWidget;
 
 private:
     void OpenChat();

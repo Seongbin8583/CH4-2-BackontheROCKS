@@ -1,4 +1,5 @@
 ﻿#include "BackontheROCKSPlayerController.h"
+#include "GameHUDWidget.h"
 
 #include "BackontheROCKSPawn.h"
 #include "BackontheROCKSUI.h"
@@ -18,6 +19,20 @@ void ABackontheROCKSPlayerController::BeginPlay()
     if (!IsLocalController())
     {
         return;
+    }
+
+    if (GameHUDWidgetClass)
+    {
+        GameHUDWidget =
+            CreateWidget<UGameHUDWidget>(
+                this,
+                GameHUDWidgetClass
+            );
+
+        if (GameHUDWidget)
+        {
+            GameHUDWidget->AddToViewport(1);
+        }
     }
 
     if (VehicleUIClass)
